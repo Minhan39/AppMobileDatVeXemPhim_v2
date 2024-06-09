@@ -1,5 +1,6 @@
 import {React, useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   View,
   Text,
@@ -16,9 +17,10 @@ const {width, height} = Dimensions.get('screen');
 const Category = () => {
   const uNavigation = useNavigation();
   const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const getCategoriesFromApi = () => {
-    return fetch('https://spidercinema.pmandono.com/api/category')
+    return fetch('https://anpm.io.vn/api/genres')
       .then(response => response.json())
       .then(json => {
         return json;
@@ -29,33 +31,51 @@ const Category = () => {
   };
 
   useEffect(() => {
-    const getCategories = async () => {
-      setCategories(await getCategoriesFromApi());
+    setIsLoading(true);
+    try {
+      const getCategories = async () => {
+        setCategories(await getCategoriesFromApi());
+      };
+      getCategories();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-    getCategories();
   }, []);
 
-  return (
+  return isLoading ? (
+    <ActivityIndicator size="large" color='#537b2f' style={{marginTop: 16}} />
+  ) : (
     <View style={Styles.container}>
-      <Header uNavigation={uNavigation} />
+      <Header uNavigation={uNavigation} title={'GENRES'} />
+      <View style={{height: 16}} />
       <FlatList
         data={categories}
         renderItem={({item}) => (
           <Pressable
             style={Styles.category}
-            onPress={() => uNavigation.navigate('MovieList',{category_id: item.id})
+            onPress={() =>
+              uNavigation.navigate('MovieList', {
+                category_id: item.id,
+                title: item.name,
+              })
             }>
             <View style={Styles.icon}>
-              {item.image == '' ? (
-                <View></View>
-              ) : (
-                <Image
-                  source={{uri: item.image}}
-                  style={{width: 48, height: 48}}
-                />
-              )}
+              <Image
+                source={{
+                  uri: 'https://cdn-icons-png.flaticon.com/512/2503/2503508.png',
+                }}
+                style={{width: 48, height: 48}}
+              />
             </View>
-            <Text style={[Styles.name, {fontSize: item.name.length >= 10 ? 12 : 14}]}>{item.name}</Text>
+            <Text
+              style={[
+                Styles.name,
+                {fontSize: item.name.length >= 10 ? 14 : 16},
+              ]}>
+              {item.name}
+            </Text>
           </Pressable>
         )}
         keyExtractor={item => item.id}
@@ -70,16 +90,17 @@ const Category = () => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   category: {
-    backgroundColor: 'rgba(196, 196, 196, 0.07)',
-    width: width / 4,
-    height: width / 4,
+    backgroundColor: '#FFF',
+    width: (width * 0.9) / 3,
+    height: (width * 0.9) / 3,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: width / 16,
+    marginBottom: (width * 0.1) / 4,
+    elevation: 4,
   },
   icon: {
     backgroundColor: '#171723',
@@ -91,7 +112,8 @@ const Styles = StyleSheet.create({
     marginBottom: 4,
   },
   name: {
-    color: '#FFFFFF',
+    color: '#000',
+    fontWeight: '500',
   },
 });
 

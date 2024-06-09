@@ -1,23 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState, useContext} from 'react';
 import {Image, StyleSheet, Text, View, Pressable} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import {FlatList, ScrollView} from 'react-native-gesture-handler';
+import {ScrollView} from 'react-native-gesture-handler';
+import {UserContext} from '../services/UserContext';
 import Header from '../components/Header';
 import PrimaryButton from '../components/PrimaryButton';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import {convertDate, convertTime} from '../utils/Logic';
 
 const Payment = ({route}) => {
   const uNavigation = useNavigation();
-  const [movie, setMovie] = useState({});
-  const [cinema, setCinema] = useState({});
-  const [openningDay, setOpenningDay] = useState([]);
-  const [showTime, setShowTime] = useState([]);
+  const context = useContext(UserContext);
   const [seat, setSeat] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [combos, setCombos] = useState([]);
+  const [showtime, setShowtime] = useState([]);
+  const [screeningDate, setScreeningDate] = useState();
+  const [screeningTime, setScreeningTime] = useState();
+  const [combo, setCombo] = useState();
 
-  const getMovieFromApi = (id) => {
-    return fetch(`https://spidercinema.pmandono.com/api/movie/${id}`)
+  const getShowtimeFromApi = id => {
+    return fetch(`https://anpm.io.vn/api/showtime/${id}`)
       .then(response => response.json())
       .then(json => {
         return json;
@@ -26,221 +26,260 @@ const Payment = ({route}) => {
         console.error(error);
       });
   };
-
-  const getCinemaFromApi = (id) => {
-    return fetch(`https://spidercinema.pmandono.com/api/cinema/${id}`)
-      .then(response => response.json())
-      .then(json => {
-        return json;
-      })
-      .catch(error => {
-        console.error(error);
-      });
+  const sumTicketPrice = () => {
+    return route.params?.price.price * route.params?.seat.length;
   };
-
-  const getCombosFromApi = (id) => {
-    return fetch(`https://spidercinema.pmandono.com/api/combo`)
-      .then(response => response.json())
-      .then(json => {
-        return json;
-      })
-      .catch(error => {
-        console.error(error);
-      });
+  const sumComboPrice = () => {
+    return combo ? combo.price * route.params?.number_combos : 0;
+  };
+  const convertSeat = seat => {
+    const row_name = [
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'K',
+      'L',
+      'M',
+      'N',
+    ];
+    let result = '';
+    for (let i = 0; i < seat.length; i++) {
+      result += row_name[seat[i][0]] + (seat[i][1] + 1);
+      if (i < seat.length - 1) {
+        result += ',';
+      }
+    }
+    return result;
   };
 
   async function postJSON() {
     try {
-      const response = await fetch("https://spidercinema.pmandono.com/api/ticket", {
-        method: "POST", // or 'PUT'
+      const response = await fetch('https://anpm.io.vn/api/ticket', {
+        method: 'POST', // or 'PUT'
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(
-          {
-            movie_id: movie.id,
-            number_tickets: 1,
-            seat: `${seat[0]},${seat[1]}`,
-            cinema_id: cinema.id,
-            openning_day: route.params?.openning_day,
-            show_time: route.params?.show_time,
-            vat: 5,
-            combo_id: route.params?.combo_id,
-            number_combos: route.params?.number_combos
-          }
-        ),
+        body: JSON.stringify({
+          user_id: context.user ? context.user.id : 1,
+          showtime_id: route.params?.showtime_id,
+          ticket_price_id: route.params?.price.id,
+          voucher_id: null,
+          gift_id: null,
+          quantity: route.params?.seat.length,
+          seats: seat,
+          combos: combo ? `${combo.id}:${route.params?.number_combos}` : null,
+          payment: 'undefine',
+          reduced_price_by_voucher: null,
+          reduced_price_by_point: null,
+          reduced_price_by_gift: null,
+        }),
       });
-  
+
       const result = await response.json();
-      console.log("Success:", result);
+      console.log('Success:', result);
       // uNavigation.popToTop();
-      uNavigation.navigate('Tabs', {screen: 'Tickets', params: {refresh: true}});
+      uNavigation.navigate('Tabs', {
+        screen: 'Tickets',
+        params: {refresh: true},
+      });
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error);
     }
   }
 
   const onClick = () => {
+    console.log('POSTING ...');
     postJSON();
-  }
+  };
 
   useEffect(() => {
-    const getMovie = async (id) => {
-      setMovie(await getMovieFromApi(id));
+    const getShowtime = async id => {
+      const showtime_api = await getShowtimeFromApi(id);
+      setShowtime(showtime_api);
+      const date_arr = showtime_api.screening_date.split('-');
+      const time_arr = showtime_api.screening_time.split(':');
+      setScreeningDate(
+        convertDate(new Date(date_arr[0], date_arr[1] - 1, date_arr[2])),
+      );
+      setScreeningTime(
+        convertTime(
+          new Date(
+            date_arr[0],
+            date_arr[1] - 1,
+            date_arr[2],
+            time_arr[0],
+            time_arr[1],
+          ),
+        ),
+      );
+    };
+    if (route.params?.showtime_id) {
+      getShowtime(route.params.showtime_id);
     }
-    const getCinema = async (id) => {
-      setCinema(await getCinemaFromApi(id));
+    if (route.params?.combo) {
+      setCombo(route.params?.combo);
     }
-    const getCombos = async () => {
-      setCombos(await getCombosFromApi());
+    if (route.params?.seat) {
+      setSeat(convertSeat(route.params?.seat));
     }
-    getMovie(route.params?.movie_id);
-    getCinema(route.params?.cinema_id);
-    getCombos();
-    if(route.params?.openning_day){
-      setOpenningDay(route.params?.openning_day.split('-'))
-    }
-    if(route.params?.show_time){
-      setShowTime(route.params?.show_time.split(':'))
-    }
-    if(route.params?.seat){
-      setSeat(route.params?.seat)
-    }
-    if(route.params?.price){
-      setTotal(route.params?.price)
-    }
-    console.log('movie_id',':',movie.id);
-    console.log('number_tickets',':',1);
-    console.log('seat',':',seat);
-    console.log('cinema_id',':',cinema.id);
-    console.log('openning_day',':',route.params?.openning_day);
-    console.log('show_time',':',route.params?.show_time);
-    console.log('vat',':',5);
-    console.log('combo_id',':',route.params?.combo_id);
-    console.log('number_combos',':',route.params?.number_combos);
+    console.log('MOVE TO PAYMENT SCREEN ...');
+    console.log('seat: ', route.params?.seat);
+    console.log('showtime id: ', route.params?.showtime_id);
+    console.log('price obj: ', route.params?.price);
+    console.log('combo: ', route.params?.combo);
+    console.log('number of combo: ', route.params?.number_combos);
   }, [
-    route.params?.movie_id,
     route.params?.seat,
-    route.params?.cinema_id,
-    route.params?.openning_day,
-    route.params?.show_time,
-    route.params?.combo_id,
-    route.params?.number_combos,
+    route.params?.showtime_id,
     route.params?.price,
-    route.params?.price_combo
+    route.params?.combo,
+    route.params?.number_combos,
   ]);
   return (
     <View style={Styles.container}>
-      <Header uNavigation={uNavigation} />
+      <Header uNavigation={uNavigation} title={'Your ticket'} />
       <View style={Styles.r}>
         <Image
           style={Styles.image}
-          source={movie.image ? {uri: movie.image} : require('../assets/img/doraemon_vungdatlytuongtrenbautroi.jpg')}
+          source={
+            showtime.movie_poster
+              ? {
+                  uri:
+                    'https://anpm.io.vn/public/storage/' +
+                    showtime.movie_poster,
+                }
+              : require('../assets/img/doraemon_vungdatlytuongtrenbautroi.jpg')
+          }
         />
         <View style={{paddingLeft: 16}}>
-          <Text style={[Styles.text, Styles.b]}>
-            {movie.name}
+          <Text
+            style={[Styles.text, Styles.b, {fontSize: 18}]}>
+            {showtime.movie_name}
           </Text>
-          <Text style={Styles.text}>{openningDay[2]} - {openningDay[1]} - {(new Date).getFullYear()}</Text>
-          <Text style={Styles.text}>{showTime[0]} : {showTime[1]}</Text>
-          <Text style={Styles.text}>{cinema.name}</Text>
-          <Text style={Styles.text}>Row {seat[0]} - Col {seat[1]}</Text>
-          <Text style={[Styles.text, Styles.b]}>Total: {Math.floor(total * 1.05)} VND</Text>
+          <Text style={Styles.text}>
+            {screeningDate}
+            {/* {openningDay[2]} - {openningDay[1]} - {new Date().getFullYear()} */}
+          </Text>
+          <Text style={Styles.text}>
+            {showtime.duration} - {screeningTime}
+            {/* {showTime[0]} : {showTime[1]} */}
+          </Text>
+          <Text style={Styles.text}>{showtime.cinema_name}</Text>
+          <Text style={Styles.text}>
+            SEATS: {seat}
+            {/* Row {seat[0]} - Col {seat[1]} */}
+          </Text>
+          <Text style={[Styles.text, {fontWeight: '900', fontSize: 18}]}>
+            TOTAL: {sumTicketPrice() + sumComboPrice()}{' '}
+            {route.params?.price.unit_name}
+            {/* Total: {Math.floor(total * 1.05)} VND */}
+          </Text>
         </View>
       </View>
       <ScrollView>
-        <Text style={Styles.title}>Ticket information</Text>
+        <Text style={Styles.title}>TICKET INFORMATION</Text>
         <View style={{paddingTop: 16, paddingHorizontal: 16, paddingBottom: 8}}>
           <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Ticket</Text>
-            <Text style={Styles.text}>x1</Text>
+            <Text style={Styles.text}>Ticket number</Text>
+            <Text style={Styles.text}>x{route.params?.seat.length}</Text>
           </View>
           <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Price</Text>
-            <Text style={Styles.text}>{Math.floor(movie.price)} VND</Text>
+            <Text style={Styles.text}>Price for a ticket</Text>
+            <Text style={Styles.text}>
+              {Math.round(route.params?.price.price)}{' '}
+              {route.params?.price.unit_name}
+            </Text>
+          </View>
+          <View
+            style={[
+              Styles.r,
+              {
+                justifyContent: 'space-between',
+                borderBottomWidth: 0.3,
+                borderBottomColor: '#CCCCCC',
+              },
+            ]}>
+            <Text style={Styles.text}>Total for tickets</Text>
+            <Text style={Styles.text}>
+              {sumTicketPrice()} {route.params?.price.unit_name}
+            </Text>
+          </View>
+          <View
+            style={[
+              Styles.r,
+              {justifyContent: 'space-between', paddingTop: 4},
+            ]}>
+            <Text style={Styles.text}>Combo detail</Text>
+            <Text style={Styles.text}>
+              {route.params?.combo ? route.params?.combo.description : 'None'}
+            </Text>
           </View>
           <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Combo</Text>
-            <Text style={Styles.text}>{route.params?.number_combos == null ? 0 : route.params?.number_combos}</Text>
+            <Text style={Styles.text}>Combo number</Text>
+            <Text style={Styles.text}>
+              x
+              {route.params?.number_combos == null
+                ? 0
+                : route.params?.number_combos}
+            </Text>
           </View>
           <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Price</Text>
-            <Text style={Styles.text}>{route.params?.price_combo} VND</Text>
+            <Text style={Styles.text}>Price for a combo</Text>
+            <Text style={Styles.text}>
+              {Math.round(route.params?.combo ? route.params?.combo.price : 0)}{' '}
+              {route.params?.combo ? route.params?.combo.unit_name : ''}
+            </Text>
+          </View>
+          <View style={[Styles.r, {justifyContent: 'space-between'}]}>
+            <Text style={Styles.text}>Total for comboes</Text>
+            <Text style={Styles.text}>
+              {sumComboPrice()}{' '}
+              {route.params?.combo ? route.params?.combo.unit_name : ''}
+            </Text>
           </View>
         </View>
-        <Text style={Styles.title}>Add combo</Text>
-        <FlatList 
-          data={combos ? combos : []}
-          renderItem={({item}) => {
-            return (
-              <Pressable
-                style={[
-                  Styles.r,
-                  {
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    marginVertical: 16,
-                    marginLeft: 16,
-                    width: 72 + 16 + 128,
-                    borderRadius: 8,
-                  },
-                ]}
-                onPress={() => uNavigation.goBack()}
-              >
-                <Image
-                  style={Styles.comboImage}
-                  source={require('../assets/img/combo.jpeg')}
-                />
-                <View style={{justifyContent: 'space-between', padding: 8}}>
-                  <View
-                    style={[
-                      Styles.r,
-                      {width: 128, justifyContent: 'space-between'},
-                    ]}>
-                    <Text style={[Styles.text, {fontSize: 16}]}>{item.name}</Text>
-                    <Ionicons name="add" size={24} color={'#FFFFFF'} />
-                  </View>
-                  <Text style={[Styles.text, Styles.b]}>{Math.floor(item.price)} VND</Text>
-                </View>
-              </Pressable>
-            )
-          }}
-          keyExtractor={item => item.id}
-          horizontal={true}
-        />
-        <Text style={Styles.title}>Summary</Text>
-        <View style={{paddingTop: 16, paddingHorizontal: 16, paddingBottom: 8}}>
-          <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Total no VAT</Text>
-            <Text style={Styles.text}>{Math.floor(total)} VND</Text>
-          </View>
-          <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>VAT</Text>
-            <Text style={Styles.text}>5 %</Text>
-          </View>
-          <View style={[Styles.r, {justifyContent: 'space-between'}]}>
-            <Text style={Styles.text}>Total</Text>
-            <Text style={Styles.text}>{Math.floor(total * 1.05)} VND</Text>
-          </View>
-        </View>
-        <Text style={Styles.title}>Payment</Text>
+        <Text style={Styles.title}>ADD COMBO</Text>
+        <Pressable
+          onPress={() => uNavigation.goBack()}
+          style={Styles.comboButton}>
+          <Text style={Styles.comboText}>Choose more combo!</Text>
+        </Pressable>
+        <Text style={Styles.title}>PAYMENT</Text>
         <View style={Styles.r}>
           <Image
-            style={[Styles.comboImage, {marginVertical: 16, marginLeft: 16}]}
-            source={require('../assets/img/combo.jpeg')}
+            style={[Styles.payment_image, {marginVertical: 16, marginLeft: 16}]}
+            source={require('../assets/img/paypal_logo.png')}
           />
           <Image
-            style={[Styles.comboImage, {marginVertical: 16, marginLeft: 16}]}
-            source={require('../assets/img/combo.jpeg')}
+            style={[Styles.payment_image, {marginVertical: 16, marginLeft: 16}]}
+            source={require('../assets/img/momo_logo.png')}
           />
         </View>
         <Text
           style={[
             Styles.text,
-            {paddingLeft: 16, fontStyle: 'italic', textAlign: 'center'},
+            {
+              paddingLeft: 16,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              fontFamily: 'Roboto',
+            },
           ]}>
           I agree to the terms and conditions.
         </Text>
-        <PrimaryButton value={'Pay now'} customStyle={Styles.button} onPress={() => onClick()}/>
+        <View style={{paddingHorizontal: 16}}>
+          <PrimaryButton
+            value={'Pay now'}
+            customStyle={Styles.button}
+            onPress={() => onClick()}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -249,7 +288,7 @@ const Payment = ({route}) => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   r: {
     flexDirection: 'row',
@@ -259,18 +298,23 @@ const Styles = StyleSheet.create({
     width: 128,
   },
   text: {
-    color: '#FFFFFF',
+    fontFamily: 'Roboto',
+    color: '#000',
     paddingBottom: 8,
+    fontSize: 16,
   },
   b: {
     fontWeight: 'bold',
     fontSize: 16,
   },
   title: {
-    color: '#FFFFFF',
+    color: '#FFF',
     paddingVertical: 16,
     paddingLeft: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#537b2f',
+    fontSize: 16,
+    fontFamily: 'Roboto',
+    fontWeight: 'bold',
   },
   comboImage: {
     height: 72,
@@ -282,6 +326,24 @@ const Styles = StyleSheet.create({
   button: {
     marginTop: 0,
     marginBottom: 16,
+  },
+  comboButton: {
+    backgroundColor: '#FFF',
+    borderWidth: 0.5,
+    padding: 16,
+    margin: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  comboText: {
+    color: '#000',
+    fontFamily: 'Roboto',
+  },
+  payment_image: {
+    height: 72,
+    width: 72,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
   },
 });
 

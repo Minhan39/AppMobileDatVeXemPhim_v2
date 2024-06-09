@@ -1,43 +1,73 @@
 import React from 'react';
-import {View, TextInput, StyleSheet} from 'react-native';
+import {View, TextInput, Text, StyleSheet} from 'react-native';
 
 const BoxTextInput = ({
   placeholder,
   width,
+  title,
   secureTextEntry,
   value,
   onChangeText,
   right,
   autoFocus,
+  message,
+  isRequired,
 }) => {
   return (
-    <View style={Styles.boxTextInput}>
-      <TextInput
-        autoFocus={autoFocus}
-        style={[Styles.textInput, {width: width}]}
-        placeholder={placeholder}
-        placeholderTextColor={'#FFFFFF'}
-        secureTextEntry={secureTextEntry}
-        value={value}
-        onChangeText={onChangeText}
-      />
-      {right}
+    <View style={{...Styles.container, width: width}}>
+      <Text style={Styles.title}>
+        {title}{' '}
+        {isRequired === true ? <Text style={{color: '#537b2f'}}>*</Text> : null}
+      </Text>
+      <View style={Styles.boxTextInput}>
+        <TextInput
+          autoFocus={autoFocus}
+          style={Styles.textInput}
+          placeholder={placeholder}
+          placeholderTextColor={'#CCCCCC'}
+          secureTextEntry={secureTextEntry}
+          value={value}
+          onChangeText={onChangeText}
+        />
+        {right}
+      </View>
+      {message != '' ? <Text style={Styles.message}>{message}</Text> : null}
     </View>
   );
 };
 
 const Styles = StyleSheet.create({
+  container: {
+    marginBottom: 4,
+  },
   boxTextInput: {
-    marginHorizontal: 32,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
   },
   textInput: {
-    paddingLeft: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.5)',
     height: 48,
-    color: '#FFFFFF',
+    color: '#000',
+    fontFamily: 'Roboto',
+    width: 'auto',
+  },
+  title: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+    fontFamily: 'Roboto',
+  },
+  message: {
+    color: '#537b2f',
+    fontSize: 12,
+    fontFamily: 'Roboto',
+    // paddingTop: 4,
+    // paddingLeft: 8,
   },
 });
 

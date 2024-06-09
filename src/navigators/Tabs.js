@@ -14,9 +14,9 @@ export default Tabs = () => {
 
   return (
     <Tab.Navigator
-      activeColor="#FFFFFF"
-      inactiveColor="#686D76"
-      barStyle={{backgroundColor: '#23232e'}}
+      activeColor="#fff"
+      inactiveColor="#23232e"
+      barStyle={{backgroundColor: '#537b2f'}}
       shifting={true}
       initialRouteName={'Home'}>
       <Tab.Screen

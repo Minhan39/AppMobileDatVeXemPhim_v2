@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {Pressable, StyleSheet, View, Text} from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {Pressable, StyleSheet, View, Text, ToastAndroid} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Header from '../components/Header';
@@ -29,13 +29,17 @@ const generateSeat = () => {
 const Seats = ({route}) => {
   const uNavigation = useNavigation();
   const [seats, setSeats] = useState([]);
-  const [seat, setSeat] = useState([]);
-  const [movie, setMovie] = useState({});
-  const [price, setPrice] = useState("0");
+  // const [seat, setSeat] = useState([]);
+  const [seats_selected, setSeatsSelected] = useState([]);
+  const [price, setPrice] = useState({});
+  const [ticketPrice, setTicketPrice] = useState('0');
+  const [hashSeat, setHashSeat] = useState([]);
   const [button, setButton] = useState(true);
 
-  const getMovieFromApi = (id) => {
-    return fetch(`https://spidercinema.pmandono.com/api/movie/${id}`)
+  const getPriceFromApi = () => {
+    return fetch(
+      `https://anpm.io.vn/api/ticket-prices/${route.params?.cinema_id}`,
+    )
       .then(response => response.json())
       .then(json => {
         return json;
@@ -45,37 +49,70 @@ const Seats = ({route}) => {
       });
   };
 
-  const onClick = (enable,i,j) => {
-    if(enable){
-      setSeat([i,j]);
-      setPrice(Math.floor(movie.price));
-      setButton(false);
+  const onClick = (enable, i, j) => {
+    if (enable) {
+      // setSeat([i, j]);
+      let hash = [];
+      for (let i = 0; i < seats_selected.length; i++) {
+        hash[seats_selected[i]] = i;
+      }
+      if (hash[[i, j]] != undefined) {
+        let tmp = [...seats_selected];
+        tmp.splice(hash[[i, j]], 1);
+        hash[[i, j]] = undefined;
+        setSeatsSelected(tmp);
+        // console.log('seats_selected: ', tmp);
+
+        setTicketPrice(
+          `${Math.round(price[0].price) * (seats_selected.length - 1)} ${
+            price[0].unit_name
+          }`,
+        );
+        if (seats_selected.length == 1) {
+          setButton(true);
+        }
+      } else {
+        if (seats_selected.length < 8) {
+          // console.log('seats_selected: ', [...seats_selected, [i, j]]);
+          setSeatsSelected([...seats_selected, [i, j]]);
+          hash[[i, j]] = seats_selected.length;
+
+          setTicketPrice(
+            `${Math.round(price[0].price) * (seats_selected.length + 1)} ${
+              price[0].unit_name
+            }`,
+          );
+          setButton(false);
+        } else {
+          ToastAndroid.show(
+            'You can only select 8 seats !',
+            ToastAndroid.SHORT,
+          );
+        }
+      }
+      setHashSeat(hash);
     }
-    console.log(i,j);
-  }
+    // console.log(i, j, `${price[0].price} ${price[0].unit_name}`);
+  };
 
   useEffect(() => {
-    const getMovie = async (id) => {
-      setMovie(await getMovieFromApi(id));
+    const getPrice = async () => {
+      const price_api = await getPriceFromApi();
+      setPrice(price_api);
+      setTicketPrice(`0 ${price_api[0].unit_name}`);
+    };
+    if (route.params?.cinema_id) {
+      getPrice();
     }
-    if(route.params?.movie_id){
-      getMovie(route.params?.movie_id);
-    }
-    console.log(route.params?.movie_id);
-    console.log(route.params?.openning_day);
-    console.log(route.params?.show_time);
-    console.log(route.params?.cinema_id);
+    console.log('MOVE TO SEAT SCREEN ...');
+    console.log('showtime_id in seat: ', route.params?.showtime_id);
+    console.log('cinema_id in seat: ', route.params?.cinema_id);
     setSeats(generateSeat());
-  }, [
-    route.params?.movie_id,
-    route.params?.openning_day,
-    route.params?.show_time,
-    route.params?.cinema_id
-  ]);
+  }, [route.params?.show_time, route.params?.cinema_id]);
 
   return (
     <View style={Styles.container}>
-      <Header uNavigation={uNavigation} />
+      <Header uNavigation={uNavigation} title={'Pick your seat'}/>
       <View style={Styles.col}>
         <MaterialCommunityIcons
           name="monitor-screenshot"
@@ -92,11 +129,17 @@ const Seats = ({route}) => {
                     key={subItem.num}
                     style={[
                       Styles.seat,
-                      {backgroundColor: subItem.empty ? seat[0] == index && seat[1] == subIndex ? '#FF0000' : '#36364F' : '#FFFFFF'},
+                      {
+                        backgroundColor: subItem.empty
+                          ? hashSeat[[index, subIndex]] != undefined
+                            ? '#537b2f'
+                            : '#CCCCCC'
+                          : '#171723',
+                      },
                     ]}
-                    onPress={() => onClick(subItem.empty, index, subIndex)}
-                  >
-                  </Pressable>
+                    onPress={() =>
+                      onClick(subItem.empty, index, subIndex)
+                    }></Pressable>
                 );
               })}
             </View>
@@ -108,7 +151,7 @@ const Seats = ({route}) => {
           <View
             style={[
               Styles.circle,
-              {backgroundColor: '#36364F', marginRight: 8},
+              {backgroundColor: '#CCC', marginRight: 8},
             ]}></View>
           <Text style={Styles.text}>Available</Text>
         </View>
@@ -116,7 +159,7 @@ const Seats = ({route}) => {
           <View
             style={[
               Styles.circle,
-              {backgroundColor: '#FF0000', marginRight: 8},
+              {backgroundColor: '#537b2f', marginRight: 8},
             ]}></View>
           <Text style={Styles.text}>Selected</Text>
         </View>
@@ -124,22 +167,21 @@ const Seats = ({route}) => {
           <View
             style={[
               Styles.circle,
-              {backgroundColor: '#FFFFFF', marginRight: 8},
+              {backgroundColor: '#171723', marginRight: 8},
             ]}></View>
           <Text style={Styles.text}>Reserved</Text>
         </View>
       </View>
       <Price
-        price={price}
+        price={ticketPrice}
         titleButton={'Buy now'}
-        onPress={() => uNavigation.navigate('ComboOptions', {
-          movie_id: route.params?.movie_id,
-          seat: seat,
-          cinema_id: route.params?.cinema_id,
-          openning_day: route.params?.openning_day,
-          show_time: route.params?.show_time,
-          price: movie.price
-        })}
+        onPress={() =>
+          uNavigation.navigate('ComboOptions', {
+            seat: seats_selected,
+            showtime_id: route.params?.showtime_id,
+            price: price[0],
+          })
+        }
         disabled={button}
       />
     </View>
@@ -149,7 +191,7 @@ const Seats = ({route}) => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   seat: {
     height: 24,
@@ -168,8 +210,9 @@ const Styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    color: 'rgba(0,0,0,0.7)',
+    fontSize: 16,
+    fontFamily: 'Roboto',
   },
   circle: {
     width: 16,

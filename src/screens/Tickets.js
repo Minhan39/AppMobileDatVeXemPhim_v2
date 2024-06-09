@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
   View,
   StyleSheet,
   Text,
@@ -10,16 +11,22 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
+import {UserContext} from '../services/UserContext';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Header from '../components/Header';
+import {convertDate, convertTime2} from '../utils/Logic';
 
 const {width, height} = Dimensions.get('screen');
 const Tickets = ({route}) => {
   const uNavigation = useNavigation();
+  const context = useContext(UserContext);
   const [tickets, setTickets] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Function to get tickets from API
   const getTicketsFromApi = () => {
-    return fetch('https://spidercinema.pmandono.com/api/ticket')
+    return fetch(`https://anpm.io.vn/api/tickets/${context.user.id}`)
       .then(response => response.json())
       .then(json => {
         return json;
@@ -29,72 +36,129 @@ const Tickets = ({route}) => {
       });
   };
 
+  // Function call to get tickets from API
   const getTickets = async () => {
-    setTickets(await getTicketsFromApi());
-  }
+    setIsLoading(true);
+    try {
+      setTickets(await getTicketsFromApi());
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     getTickets();
-    if(route.params?.refresh){
+    if (route.params?.refresh) {
       getTickets();
     }
   }, [route.params?.refresh]);
 
-  return (
+  return isLoading ? (
+    <ActivityIndicator size="large" color='#537b2f' style={{marginTop: 16}} />
+  ) : (
     <View style={Styles.container}>
-      <Header uNavigation={uNavigation} />
-      <FlatList
-        data={tickets ? tickets : []}
-        renderItem={({item}) => (
-          <Pressable
-            style={Styles.ticket}
-            onPress={() => uNavigation.navigate('TicketDetail', {
-              cinema_name: item.cinema_name,
-              openning_day: item.openning_day,
-              show_time: item.show_time,
-              seat: item.seat,
-              id: item.id,
-              movie_image: item.movie_image
-            })}>
-            <ImageBackground
-              source={{uri: item.movie_image}}
-              style={Styles.image}
-              imageStyle={{borderRadius: 8}}>
-              <LinearGradient
-                start={{x: 0.5, y: 0}}
-                end={{x: 1, y: 0}}
-                colors={['rgba(9, 140, 208, 0)', 'rgba(255, 255, 255, 1)']}
-                style={Styles.linear}></LinearGradient>
-              <View style={Styles.circle1}></View>
-              <View style={Styles.circle2}></View>
-              <View style={Styles.line}></View>
-            </ImageBackground>
-            <View
-              style={{
-                backgroundColor: '#fff',
-                justifyContent: 'space-evenly',
-              }}>
-              <View>
-                <Text style={Styles.text}>
-                  <FontAwesome name="map-marker" size={16} color={'#000'} />{' '}
-                  {item.cinema_name}
-                </Text>
-                <Text style={[Styles.text, {fontSize: 12}]}>
-                  <FontAwesome name="calendar" size={12} color={'#000'} />{' '}
-                  {item.show_time.split(':')[0]} : {item.show_time.split(':')[1]} - {item.openning_day.split('-')[2]}/{item.openning_day.split('-')[1]}/{item.openning_day.split('-')[0]}
+      <Header uNavigation={uNavigation} title={'Tickets'} />
+      {tickets.length > 0 ? (
+        <FlatList
+          style={{marginTop: 16}}
+          data={tickets ? tickets : []}
+          renderItem={({item}) => (
+            <Pressable
+              style={[
+                Styles.ticket,
+                {backgroundColor: `rgb(${item.primary_color_background})`},
+              ]}
+              onPress={() =>
+                uNavigation.navigate('TicketDetail', {
+                  cinema_name: item.cinema_name,
+                  screening_date: item.screening_date,
+                  screening_time: item.screening_time,
+                  id: item.id,
+                  movie_image: item.movie_poster,
+                  seats: item.seats,
+                  color_background: item.primary_color_background,
+                  color_text: item.primary_color_text,
+                })
+              }>
+              <ImageBackground
+                source={{
+                  uri: 'https://anpm.io.vn/public/storage/' + item.movie_poster,
+                }}
+                style={Styles.image}
+                imageStyle={{borderRadius: 8}}>
+                <LinearGradient
+                  start={{x: 0.5, y: 0}}
+                  end={{x: 1, y: 0}}
+                  colors={[
+                    `rgba(${item.primary_color_background}, 0)`,
+                    `rgba(${item.primary_color_background}, 1)`,
+                  ]}
+                  style={Styles.linear}></LinearGradient>
+                <View style={Styles.circle1}></View>
+                <View style={Styles.circle2}></View>
+                <View style={Styles.line}></View>
+              </ImageBackground>
+              <View
+                style={{
+                  backgroundColor: `rgb(${item.primary_color_background})`,
+                  justifyContent: 'space-evenly',
+                }}>
+                <View>
+                  <Text style={[Styles.text, {color: item.primary_color_text}]}>
+                    <FontAwesome
+                      name="map-marker"
+                      size={14}
+                      color={item.primary_color_text}
+                    />{' '}
+                    {item.cinema_name}
+                  </Text>
+                  <Text
+                    style={[
+                      Styles.text,
+                      {color: item.primary_color_text, fontSize: 14},
+                    ]}>
+                    <FontAwesome
+                      name="calendar"
+                      size={14}
+                      color={item.primary_color_text}
+                    />{' '}
+                    {convertDate(new Date(item.screening_date))}
+                  </Text>
+                  <Text
+                    style={[
+                      Styles.text,
+                      {color: item.primary_color_text, fontSize: 14},
+                    ]}>
+                    <FontAwesome
+                      name="clock-o"
+                      size={14}
+                      color={item.primary_color_text}
+                    />{' '}
+                    {convertTime2(item.screening_time)} - {item.duration}
+                  </Text>
+                </View>
+                <Text style={[Styles.text, {color: item.primary_color_text}]}>
+                  <MaterialCommunityIcons
+                    name="seat"
+                    size={14}
+                    color={item.primary_color_text}
+                  />{' '}
+                  {item.seats}
                 </Text>
               </View>
-              <Text style={Styles.text}>
-                <Text style={{fontWeight: 'bold', fontSize: 16}}>
-                  {(Number(item.movie_price) + Number(item.combo_price) * Number(item.number_combos)) * (1 + item.vat/100)}
-                </Text>
-                đ
-              </Text>
-            </View>
-          </Pressable>
-        )}
-        keyExtractor={item => item.id}
-      />
+            </Pressable>
+          )}
+          keyExtractor={item => item.id}
+        />
+      ) : (
+        <View style={{flex: 1, justifyContent: 'center'}}>
+          <Text style={{textAlign: 'center', fontSize: 16}}>
+            You don't have any ticket!!!
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -102,32 +166,34 @@ const Tickets = ({route}) => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   ticket: {
     flexDirection: 'row',
     width: width - 32,
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     justifyContent: 'space-between',
     paddingRight: 16,
     borderRadius: 8,
     marginBottom: 16,
+    elevation: 4,
   },
   image: {
-    height: 96,
-    width: 150,
+    height: 128,
+    width: 124,
   },
   linear: {
-    width: 150,
-    height: 96,
+    width: 124,
+    height: 128,
   },
   text: {
     color: '#000',
     textAlign: 'right',
+    fontSize: 16,
+    fontFamily: 'Roboto',
   },
   circle1: {
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
     height: 32,
     width: 32,
     borderRadius: 16,
@@ -136,7 +202,7 @@ const Styles = StyleSheet.create({
     left: 48,
   },
   circle2: {
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
     height: 32,
     width: 32,
     borderRadius: 16,
@@ -151,7 +217,7 @@ const Styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 48,
-    borderRightColor: '#171723',
+    borderRightColor: '#FFF',
     borderRightWidth: 3,
     borderStyle: 'dashed',
   },

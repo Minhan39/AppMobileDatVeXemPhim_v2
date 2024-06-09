@@ -1,5 +1,7 @@
-const IsVietNamPhoneNumber = phone => {
-  return /(84|0[3|5|7|8|9])+([0-9]{8})\b/.test(phone);
+const IsEmail = email => {
+  return String(email)
+    .toLowerCase()
+    .match(/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/);
 };
 
 let weekdays = [];
@@ -15,5 +17,29 @@ for (let i = 0; i < 7; i++) {
   };
   weekdays.push(temDate);
 }
+const convertDate = date => {
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+const convertTime = time => {
+  return time.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: 'numeric',
+  });
+};
+const convertTime2 = time => {
+  const time_arr = time.split(':');
+  return (
+    (time_arr[0] % 12) +
+    ':' +
+    time_arr[1] +
+    ' ' +
+    (time_arr[0] > 12 ? 'PM' : 'AM')
+  );
+};
 
-export {IsVietNamPhoneNumber, weekdays};
+export {IsEmail, weekdays, convertDate, convertTime, convertTime2};

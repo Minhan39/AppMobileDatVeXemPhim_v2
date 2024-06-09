@@ -6,7 +6,7 @@ const Button = ({value, onPress, disabled, customStyle}) => {
     <Pressable
       style={[
         Styles.button,
-        {backgroundColor: disabled ? '#CCCCCC' : '#FF0000'},
+        {backgroundColor: disabled ? '#CCCCCC' : '#537b2f'},
         customStyle,
       ]}
       onPress={onPress}
@@ -18,9 +18,8 @@ const Button = ({value, onPress, disabled, customStyle}) => {
 
 const Styles = StyleSheet.create({
   button: {
-    backgroundColor: '#FF0000',
+    backgroundColor: '#537b2f',
     height: 48,
-    marginHorizontal: 32,
     borderRadius: 8,
     marginTop: 16,
     alignItems: 'center',
@@ -29,6 +28,7 @@ const Styles = StyleSheet.create({
   text: {
     textTransform: 'uppercase',
     fontWeight: 'bold',
+    fontFamily: 'Roboto',
     color: '#FFFFFF',
     fontSize: 16,
   },

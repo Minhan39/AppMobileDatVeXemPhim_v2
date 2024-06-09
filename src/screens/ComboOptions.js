@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -20,9 +21,10 @@ const ComboOptions = ({route}) => {
   const [combos, setCombos] = useState([]);
   const [choose, setChoose] = useState([]);
   const [price, setPrice] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const getCombosFromApi = () => {
-    return fetch(`https://spidercinema.pmandono.com/api/combo`)
+    return fetch(`https://anpm.io.vn/api/comboes`)
       .then(response => response.json())
       .then(json => {
         return json;
@@ -34,103 +36,119 @@ const ComboOptions = ({route}) => {
 
   const onRemove = (id, p) => {
     //console.log(p,price);
-    if(choose.length > 0 && choose[0] == id && choose[1] > 1){
+    if (choose.length > 0 && choose[0] == id && choose[1] > 1) {
       setChoose([id, choose[1] - 1]);
       setPrice(Number(price) - Number(p));
-    }
-    else
-    if(choose.length > 0 && choose[0] == id && choose[1] == 1){
+    } else if (choose.length > 0 && choose[0] == id && choose[1] == 1) {
       setChoose([]);
-      setPrice(route.params?.price);
+      setPrice(route.params?.price.price * route.params?.seat.length);
     }
-  }
+  };
 
   const onAdd = (id, p) => {
     //console.log(p, price);
-    if(choose.length > 0 && choose[0] == id){
+    if (choose.length > 0 && choose[0] == id) {
       setChoose([id, choose[1] + 1]);
       setPrice(Number(price) + Number(p));
-    }
-    else{
+    } else {
       setChoose([id, 1]);
-      setPrice(Number(route.params?.price) + Number(p));
+      setPrice(
+        Number(route.params?.price.price * route.params?.seat.length) +
+          Number(p),
+      );
     }
-  }
+  };
 
   useEffect(() => {
     const getCombos = async () => {
-      setCombos(await getCombosFromApi());
-    }
+      try{
+        setIsLoading(true);
+        setCombos(await getCombosFromApi());
+      }
+      catch(error){
+        console.error(error);
+      }
+      finally{
+        setIsLoading(false);
+      }
+    };
     getCombos();
-    if(route.params?.price){
-      setPrice(route.params?.price);
+    if (route.params?.price) {
+      setPrice(route.params?.price.price * route.params?.seat.length);
     }
-    console.log(route.params?.movie_id);
-    console.log(route.params?.seat);
-    console.log(route.params?.cinema_id);
-    console.log(route.params?.openning_day);
-    console.log(route.params?.show_time);
-    console.log(route.params?.price);
-  }, [
-    route.params?.movie_id,
-    route.params?.seat,
-    route.params?.cinema_id,
-    route.params?.openning_day,
-    route.params?.show_time,
-    route.params?.price
-  ])
+    console.log('MOVE TO COMBO SCREEN ...');
+    console.log('seat: ', route.params?.seat);
+    console.log('showtime id: ', route.params?.showtime_id);
+    console.log('price obj: ', route.params?.price);
+  }, [route.params?.seat, route.params?.showtime_id, route.params?.price]);
   return (
     <View style={Styles.container}>
-      <Header uNavigation={uNavigation} />
+      <Header uNavigation={uNavigation} title={'Good service for you'}/>
+      {isLoading ? <ActivityIndicator size="large" color='#537b2f' style={{marginTop: 16}} /> :
       <FlatList
+        style={{paddingTop: 8}}
         data={combos ? combos : []}
         renderItem={({item}) => (
+          <View style={{padding: 4, marginBottom: 8}}>
           <View style={Styles.item}>
             <Image
               style={Styles.image}
-              source={require('../assets/img/combo.jpeg')}
+              source={{uri: 'https://anpm.io.vn/public/storage/' + item.image}}
             />
             <View style={Styles.bodyItem}>
               <View style={Styles.headerItem}>
-                <Text style={[Styles.text, {fontWeight: 'bold', textTransform: 'uppercase'}]}>
-                  {item.name}
+                <Text
+                  style={[
+                    Styles.text,
+                    {fontFamily: 'roboto', fontWeight: 'bold', textTransform: 'uppercase'},
+                  ]}>
+                  Good service
                 </Text>
                 <View style={Styles.num}>
-                  <Pressable style={Styles.button} onPress={() => onRemove(item.id, item.price)}>
-                    <Ionicons name="remove" size={24} color={'#FFFFFF'} />
+                  <Pressable
+                    style={Styles.button}
+                    onPress={() => onRemove(item.id, item.price)}>
+                    <Ionicons name="remove" size={16} color={'#FFFFFF'} />
                   </Pressable>
                   <Text style={[Styles.text, {marginHorizontal: 8}]}>
-                    {choose.length > 0 && item.id == choose[0] ? choose[1] : item.num}
+                    {choose.length > 0 && item.id == choose[0]
+                      ? choose[1]
+                      : item.num}
                   </Text>
-                  <Pressable style={Styles.button} onPress={() => onAdd(item.id, item.price)}>
-                    <Ionicons name="add" size={24} color={'#FFFFFF'} />
+                  <Pressable
+                    style={Styles.button}
+                    onPress={() => onAdd(item.id, item.price)}>
+                    <Ionicons name="add" size={16} color={'#FFFFFF'} />
                   </Pressable>
                 </View>
               </View>
-              <FlatList 
-                data={item.description ? item.description : []}
-                renderItem={({item}) => (<Text style={Styles.text}>{item}</Text>)}
-                keyExtractor={(item, index) => index}
-              />
+              <Text style={Styles.text}>{item.description}</Text>
+              <Text style={Styles.text}>
+                Price: {Math.round(item.price)} {item.unit_name}
+              </Text>
             </View>
+          </View>
+          {item.id == 5 && <View style={Styles.hot}><Text style={{fontFamily: 'roboto', fontSize: 12, color: '#fff', fontWeight: 'bold'}}>NEW</Text></View>}
           </View>
         )}
         keyExtractor={item => item.id}
-      />
-      <Price 
-        price={Math.floor(price)} 
-        titleButton={'Checkout'} 
-        onPress={() => uNavigation.navigate('Payment', {
-          movie_id: route.params?.movie_id,
-          seat: route.params?.seat,
-          cinema_id: route.params?.cinema_id,
-          openning_day: route.params?.openning_day,
-          show_time: route.params?.show_time,
-          price: price,
-          combo_id: choose.length > 0 ? choose[0] : null,
-          number_combos: choose.length > 0 ? choose[1] : null,
-          price_combo: Number(price) - Number(route.params?.price)
-        })}
+      /> }
+      <Price
+        price={Math.floor(price) + ' ' + route.params?.price.unit_name}
+        titleButton={'Checkout'}
+        disabled={isLoading}
+        onPress={() =>
+          uNavigation.navigate('Payment', {
+            seat: route.params?.seat,
+            showtime_id: route.params?.showtime_id,
+            price: route.params?.price,
+            combo:
+              choose.length > 0
+                ? combos.find(item => item.id == choose[0])
+                : null,
+            number_combos: choose.length > 0 ? choose[1] : null,
+          })
+        }
       />
     </View>
   );
@@ -139,24 +157,28 @@ const ComboOptions = ({route}) => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   image: {
     width: 128,
     height: 128,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   item: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    marginTop: 8,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    elevation: 4,
   },
   bodyItem: {
-    paddingLeft: 16,
     paddingTop: 16,
     width: width - 160,
   },
   text: {
     color: '#000000',
+    fontFamily: 'roboto',
   },
   headerItem: {
     flexDirection: 'row',
@@ -167,14 +189,26 @@ const Styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    paddingRight: 16,
   },
   button: {
     backgroundColor: '#171723',
-    height: 32,
-    width: 32,
+    height: 24,
+    width: 24,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  hot: {
+    backgroundColor: '#537b2f',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    top: 0,
+    left: 12,
   },
 });
 

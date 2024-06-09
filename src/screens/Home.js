@@ -1,5 +1,6 @@
-import {React, useEffect, useState} from 'react';
+import {React, useContext, useEffect, useMemo, useState} from 'react';
 import {
+  ActivityIndicator,
   View,
   StyleSheet,
   Text,
@@ -9,17 +10,18 @@ import {
   Pressable,
 } from 'react-native';
 import {ScrollView} from 'react-native-gesture-handler';
-import {useNavigation} from '@react-navigation/native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import {UserContext} from '../services/UserContext';
 
-const Home = () => {
-  const uNavigation = useNavigation();
+const Home = ({navigation}) => {
   const [categories, setCategories] = useState([]);
   const [movies, setMovies] = useState([]);
-  console.log(FontAwesome);
+  const [isLoading, setIsLoading] = useState(true);
+  const [avatar, setAvatar] = useState('');
+  const context = useContext(UserContext);
 
   const getCategoriesFromApi = () => {
-    return fetch('https://spidercinema.pmandono.com/api/category')
+    return fetch('https://anpm.io.vn/api/genres')
       .then(response => response.json())
       .then(json => {
         return json;
@@ -30,7 +32,7 @@ const Home = () => {
   };
 
   const getMoviesFromApi = () => {
-    return fetch('https://spidercinema.pmandono.com/api/category/movie')
+    return fetch('https://anpm.io.vn/api/movies')
       .then(response => response.json())
       .then(json => {
         return json;
@@ -40,47 +42,69 @@ const Home = () => {
       });
   };
 
-  useEffect(() => {
-    const getCategories = async () => {
-      setCategories(await getCategoriesFromApi());
-    };
-    const getMovies = async () => {
-      setMovies(await getMoviesFromApi());
-    };
-    getCategories();
-    getMovies();
+  useMemo(() => {
+    setIsLoading(true);
+    try {
+      const getCategories = async () => {
+        setCategories(await getCategoriesFromApi());
+      };
+      const getMovies = async () => {
+        setMovies(await getMoviesFromApi());
+      };
+      getCategories();
+      getMovies();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const Header = ({uNavigation}) => {
+  useEffect(() => {
+    setAvatar(context.user?.profile_photo_path ?? "");
+  }, [context.user]);
+
+  const Header = ({navigation}) => {
     return (
       <View style={Styles.header}>
         <Pressable
           style={Styles.search}
-          onPress={() => uNavigation.navigate('Search')}>
-          <FontAwesome
-            name={'search'}
-            size={16}
-            color={'rgba(255,255,255,0.7)'}
-          />
+          onPress={() => navigation.navigate('Search')}>
+          <FontAwesome name={'search'} size={16} color={'rgba(0,0,0,0.7)'} />
           <Text style={Styles.searchText}>Find your favorite movie</Text>
         </Pressable>
-        <View style={Styles.avatar}></View>
+        <Pressable onPress={() => navigation.navigate('Account')}>
+          <Image
+            source={
+              avatar === '' || avatar === null
+                ? require('../assets/img/avatar.png')
+                : {uri: avatar}
+            }
+            style={Styles.avatar}
+          />
+        </Pressable>
       </View>
     );
   };
-  const Categories = ({uNavigation}) => {
+  const Categories = ({navigation}) => {
     const CategoryItem = ({image, name, id}) => {
       return (
         <Pressable
           style={Styles.category}
-          onPress={() => uNavigation.navigate('MovieList', {category_id: id})}>
+          onPress={() =>
+            navigation.navigate('MovieList', {category_id: id, title: name})
+          }>
           {image == '' ? (
             <View></View>
           ) : (
             <Image source={{uri: image}} style={{width: 36, height: 36}} />
           )}
           <Text
-            style={{color: '#FFFFFF', fontSize: name.length >= 10 ? 10 : 11}}>
+            style={{
+              color: '#000',
+              fontSize: name.length >= 10 ? 10 : 11,
+              fontWeight: '500',
+            }}>
             {name}
           </Text>
         </Pressable>
@@ -89,58 +113,101 @@ const Home = () => {
     return (
       <View>
         <View style={Styles.categoriesHeader}>
-          <Text style={{color: '#FFFFFF'}}>Movie categories</Text>
-          <Pressable onPress={() => uNavigation.navigate('Category')}>
-            <Text style={{color: '#0094FF'}}>show all</Text>
+          <Text style={Styles.label}>MOVIE GENRES</Text>
+          <Pressable onPress={() => navigation.navigate('Category')}>
+            <Text style={{color: '#537b2f', fontSize: 16}}>SHOW ALL</Text>
           </Pressable>
         </View>
         <FlatList
+          style={{marginVertical: 4, height: 80}}
           horizontal={true}
+          showsHorizontalScrollIndicator={false}
           data={categories ? categories.slice(0, 6) : []}
           renderItem={({item}) => (
-            <CategoryItem image={item.image} name={item.name} id={item.id} />
+            <CategoryItem
+              image={'https://cdn-icons-png.flaticon.com/512/2503/2503508.png'}
+              name={item.name}
+              id={item.id}
+            />
           )}
           keyExtractor={item => item.id}
         />
       </View>
     );
   };
-  const Movies = ({uNavigation}) => {
+  const Movies = ({navigation}) => {
     return (
       <View>
+        <View style={Styles.title}>
+          <Text style={Styles.label}>Top Trading</Text>
+        </View>
         <View style={Styles.slideshow}>
           <Pressable
-            onPress={() => uNavigation.navigate('Detail', {movie_id: 2})}>
+            onPress={() =>
+              navigation.navigate('Detail', {
+                movie_id: movies ? movies[0].movie_id : 0,
+              })
+            }>
             <Image
               style={Styles.slide}
-              source={require('../assets/img/doraemon_vungdatlytuongtrenbautroi.jpg')}
+              source={
+                movies[0]
+                  ? {
+                      uri:
+                        'https://anpm.io.vn/public/storage/' +
+                        movies[0].movie_poster,
+                    }
+                  : require('../assets/img/doraemon_vungdatlytuongtrenbautroi.jpg')
+              }
             />
+            <Text style={Styles.rating_slide}>
+              {movies[0] ? movies[0].rating_system_name : ''}
+            </Text>
           </Pressable>
         </View>
+        <View style={Styles.title}>
+          <Text style={Styles.label}>Currently showing movies</Text>
+        </View>
         <FlatList
-          data={categories ? categories.slice(0, 3) : []}
+          style={{paddingTop: 8}}
+          horizontal={true}
+          data={movies ? movies : []}
           renderItem={({item}) => (
-            <View>
-              <View style={Styles.title}>
-                <Text style={Styles.titleText}>{item.name}</Text>
-              </View>
-              <FlatList
-                data={movies[item.id] ? movies[item.id] : []}
-                renderItem={({item}) => (
-                  <Pressable
-                    onPress={() =>
-                      uNavigation.navigate('Detail', {movie_id: item.id})
-                    }>
-                    <Image style={Styles.image} source={{uri: item.image}} />
-                  </Pressable>
-                )}
-                keyExtractor={item => item.id}
-                horizontal
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Detail', {movie_id: item.movie_id})
+              }>
+              <Image
+                style={Styles.image}
+                source={{
+                  uri: 'https://anpm.io.vn/public/storage/' + item.movie_poster,
+                }}
               />
-            </View>
+              <Text style={Styles.rating}>{item.rating_system_name}</Text>
+            </Pressable>
           )}
-          keyExtractor={item => item.id}
-          scrollEnabled={false}
+        />
+        <View style={Styles.title}>
+          <Text style={Styles.label}>Upcoming movies</Text>
+        </View>
+        <FlatList
+          style={{paddingTop: 8}}
+          horizontal={true}
+          data={movies ? movies.slice(0, 2) : []}
+          renderItem={({item}) => (
+            <Pressable
+              onPress={() =>
+                navigation.navigate('Detail', {movie_id: item.movie_id})
+              }>
+              <Image
+                style={Styles.image}
+                source={{
+                  uri: 'https://anpm.io.vn/public/storage/' + item.movie_poster,
+                }}
+              />
+              <Text style={Styles.rating}>{item.rating_system_name}</Text>
+            </Pressable>
+          )}
         />
       </View>
     );
@@ -149,9 +216,16 @@ const Home = () => {
   return (
     <SafeAreaView style={Styles.container}>
       <ScrollView>
-        <Header uNavigation={uNavigation} />
-        <Categories uNavigation={uNavigation} />
-        <Movies uNavigation={uNavigation} />
+        <Header navigation={navigation} />
+        {isLoading ? (
+          <ActivityIndicator size="large" color='#537b2f' style={{marginTop: 16}} />
+        ) : (
+          <View>
+            <Categories navigation={navigation} />
+            <Movies navigation={navigation} />
+            <View style={{height: 8}}></View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -160,40 +234,42 @@ const Home = () => {
 const Styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#171723',
+    backgroundColor: '#FFF',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    backgroundColor: '#537b2f',
+    paddingVertical: 16,
   },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.5)',
-    borderWidth: 1,
-    width: 280,
-    paddingLeft: 8,
-    height: 32,
-    borderRadius: 16,
+    width: '84%',
+    paddingLeft: 16,
+    height: 40,
+    borderRadius: 24,
+    backgroundColor: '#FFF',
   },
   searchText: {
-    fontSize: 10,
+    fontSize: 14,
     paddingLeft: 8,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
+    fontStyle: 'italic',
+    fontWeight: '500',
   },
   avatar: {
-    height: 32,
-    width: 32,
+    height: 40,
+    width: 40,
     backgroundColor: '#CCCCCC',
-    borderRadius: 16,
+    borderRadius: 24,
   },
   categoriesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 16,
   },
   category: {
     alignItems: 'center',
@@ -201,8 +277,9 @@ const Styles = StyleSheet.create({
     borderRadius: 8,
     width: 72,
     height: 72,
-    backgroundColor: 'rgba(196, 196, 196, 0.07)',
     marginLeft: 8,
+    backgroundColor: '#FFF',
+    elevation: 4,
   },
   slide: {
     width: 272,
@@ -210,22 +287,50 @@ const Styles = StyleSheet.create({
     borderRadius: 8,
   },
   slideshow: {
-    paddingTop: 16,
+    paddingTop: 8,
     alignItems: 'center',
   },
   title: {
     paddingLeft: 16,
-  },
-  titleText: {
-    color: '#FFFFFF',
-    paddingVertical: 8,
-    textTransform: 'uppercase',
   },
   image: {
     width: 88,
     height: 128,
     borderRadius: 8,
     marginLeft: 8,
+  },
+  rating_slide: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#FFD700',
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 16,
+    padding: 4,
+    width: 48,
+    textAlign: 'center',
+    borderRadius: 4,
+  },
+  rating: {
+    position: 'absolute',
+    top: 4,
+    left: 12,
+    backgroundColor: '#FFD700',
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 10,
+    padding: 4,
+    width: 32,
+    textAlign: 'center',
+    borderRadius: 4,
+  },
+  label: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Roboto',
+    textTransform: 'uppercase',
   },
 });
 

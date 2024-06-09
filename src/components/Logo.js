@@ -1,10 +1,14 @@
 import React from 'react';
-import {StyleSheet, View, Text} from 'react-native';
+import {StyleSheet, View, Text, Image} from 'react-native';
 
 const Logo = () => {
   return (
     <View style={Styles.logo}>
-      <Text style={Styles.text}>SPIDER</Text>
+      <Image
+          style={{width: 120, height: 120}}
+          source={require('../assets/img/loading2.png')}
+        />
+        <Text style={Styles.text}>SPIDER CINEMA</Text>
     </View>
   );
 };
@@ -12,11 +16,12 @@ const Logo = () => {
 const Styles = StyleSheet.create({
   logo: {
     alignItems: 'center',
+    paddingVertical: 16,
   },
   text: {
-    color: '#FF0000',
+    color: '#537b2f',
+    fontSize: 32,
     fontWeight: 'bold',
-    fontSize: 72,
   },
 });
 

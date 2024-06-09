@@ -7,12 +7,12 @@ const Checkbox = ({disabled, onPress}) => {
       onPress={onPress}
       style={[
         Styles.checkbox,
-        {backgroundColor: disabled ? '#CCCCCC' : '#FF0000'},
+        {backgroundColor: disabled ? '#CCCCCC' : '#537b2f'},
       ]}>
       <View
         style={[
           Styles.checkboxButton,
-          {backgroundColor: disabled ? '#FFFFFF' : '#FF0000'},
+          {backgroundColor: disabled ? '#FFFFFF' : '#537b2f'},
         ]}></View>
       <View
         style={[
